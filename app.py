@@ -1,5 +1,7 @@
 import streamlit as st
 import sqlite3
+
+from scheduler import calculate_next_status
 from datetime import date
 
 st.title("DSA Coach")
@@ -63,3 +65,41 @@ for row in all_problems:
     st.write(f"**{problem}** ({pattern}, {difficulty}) — Status: {status} — Next: {next_revisit}")
     if last_attempt:
         st.caption(f"Last attempt: {last_attempt} — {result} — {note or ''}")
+
+
+st.subheader("Log an Attempt")
+
+conn = sqlite3.connect("dsa_coach.db")
+cursor = conn.cursor()
+cursor.execute("SELECT id, problem, status FROM problems ORDER BY problem")
+all_for_dropdown = cursor.fetchall()
+conn.close()
+
+problem_options = {f"{p[1]} ({p[2]})": p for p in all_for_dropdown}
+selected_label = st.selectbox("Which problem?", list(problem_options.keys()))
+result = st.radio("Result", ["Cold", "Help"])
+note = st.text_input("Note (optional)")
+
+if st.button("Submit"):
+    problem_id, problem_name, current_status = problem_options[selected_label]
+    today = date.today()
+
+    new_status, next_revisit = calculate_next_status(current_status, result, today)
+
+    conn = sqlite3.connect("dsa_coach.db")
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "INSERT INTO attempts (problem_id, attempt_date, result, note) VALUES (?, ?, ?, ?)",
+        (problem_id, today.isoformat(), result, note)
+    )
+
+    cursor.execute(
+        "UPDATE problems SET status = ?, next_revisit = ? WHERE id = ?",
+        (new_status, next_revisit.isoformat() if next_revisit else None, problem_id)
+    )
+
+    conn.commit()
+    conn.close()
+
+    st.success(f"Logged. {problem_name} moved to {new_status}, next revisit: {next_revisit}")
