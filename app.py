@@ -103,3 +103,23 @@ if st.button("Submit"):
     conn.close()
 
     st.success(f"Logged. {problem_name} moved to {new_status}, next revisit: {next_revisit}")
+
+
+st.subheader("Weak Patterns")
+
+conn = sqlite3.connect("dsa_coach.db")
+cursor = conn.cursor()
+cursor.execute("""
+    SELECT p.pattern, 
+           SUM(CASE WHEN a.result = 'Help' THEN 1 ELSE 0 END) AS help_count,
+           COUNT(a.id) AS total_attempts
+    FROM problems p
+    JOIN attempts a ON a.problem_id = p.id
+    GROUP BY p.pattern
+    ORDER BY help_count DESC
+""")
+pattern_stats = cursor.fetchall()
+conn.close()
+
+for pattern, help_count, total in pattern_stats:
+    st.write(f"**{pattern}** — {help_count} Help / {total} total attempts")
