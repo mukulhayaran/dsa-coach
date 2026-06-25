@@ -5,7 +5,7 @@ from scheduler import calculate_next_status
 
 st.set_page_config(page_title="DSA Coach", layout="wide")
 st.sidebar.title("DSA Coach")
-page = st.sidebar.radio("Go to", ["Today", "All Problems", "Log Attempt", "Weak Patterns"])
+page = st.sidebar.radio("Go to", ["Today", "All Problems", "Log Attempt", "Weak Patterns", "Add Problem"])
 
 def get_connection():
     return sqlite3.connect("dsa_coach.db")
@@ -108,3 +108,26 @@ elif page == "Weak Patterns":
 
     for pattern, help_count, total in pattern_stats:
         st.write(f"**{pattern}** — {help_count} Help / {total} total attempts")
+
+elif page == "Add Problem":
+    st.title("Add New Problem")
+
+    problem_name = st.text_input("Problem name")
+    pattern = st.text_input("Pattern")
+    difficulty = st.selectbox("Difficulty", ["Easy", "Medium", "Hard"])
+
+    if st.button("Add"):
+        if not problem_name:
+            st.error("Problem name can't be empty.")
+        else:
+            today = date.today().isoformat()
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO problems (problem, pattern, difficulty, status, next_revisit)
+                VALUES (?, ?, ?, 'SEEDED', ?)
+            """, (problem_name, pattern, difficulty, today))
+            conn.commit()
+            conn.close()
+            st.success(f"Added '{problem_name}' to the system.")
+
